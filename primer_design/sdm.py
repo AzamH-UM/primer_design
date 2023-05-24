@@ -2,6 +2,7 @@
 import primer_design 
 import pandas as pd 
 from Bio.Seq import Seq
+from copy import deepcopy
 
 def design_primer(dna_seq,
                           wt_resn,
@@ -53,6 +54,7 @@ def design_primer(dna_seq,
     mut_codon = primer_design.highest_freq_codon(mut_resn)
 
     #Mutate codon
+    original_seq = deepcopy(dna_seq)
     dna_seq = dna_seq[:codon_start] + mut_codon + dna_seq[codon_end:]
     
     #Create forward primer by slicing max-pad - codon - max-pad
@@ -132,7 +134,7 @@ def design_primer(dna_seq,
     primer_df = primer_df.iloc[(primer_df['TM']-TM_target).abs().argsort()]
 
     if verbose:
-        print(f'{dna_seq=}')
+        print(f'{original_seq=}')
         print(f'{wt_resn=}, {mut_resi=}, {mut_resn=}')
         print(f'{wt_codon=}')
         print(f'{mut_codon=}')

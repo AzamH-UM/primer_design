@@ -2,6 +2,7 @@
 import primer_design 
 import pandas as pd 
 from Bio.Seq import Seq
+from copy import deepcopy
 
 def design_primer(dna_seq,
                           wt_resn,
@@ -10,11 +11,11 @@ def design_primer(dna_seq,
                           max_pad = 20,
                           min_pad = 10,
                           primer_conc = 500,
-                          GC_3prime = False,
+                          GC_3prime = True,
                           GC_5prime = False,
                           TM_target = 70,
                           polymerase = 'Phusion',
-                          verbose = True,
+                          verbose = False,
                           GC_max = 0.8,
                           TM_diff_max = None,
                           show_gap = True,
@@ -27,15 +28,17 @@ def design_primer(dna_seq,
         wt_resn (str): Wildtype residue.
         mut_resi (int): Residue position to mutate.
         mut_resn (str): Mutant residue.
-        max_pad (int): Maximum number of nucleotides to pad the codon with.
-        min_pad (int): Minimum number of nucleotides to pad the codon with.
-        target_tm (float): Target melting temperature.
-        tm_threshold (float): Threshold for melting temperature.
-        target_gc (float): Target GC content.
-        require_three_prime_G_C (bool): Require a G or C at the 3' end of the primer.
-        primer_conc (float): Primer concentration in nM.
-        polymerase (str): Polymerase to use.
-        verbose (bool): Print information about primer design.
+        max_pad (int): Maximum number of nucleotides to pad the codon with. Default is 20.
+        min_pad (int): Minimum number of nucleotides to pad the codon with. Default is 10.
+        primer_conc (float): Primer concentration in nM. Default is 500.
+        GC_3prime (bool): Filter forward primers so that 3' is G or C . Default is True.
+        GC_5prime (bool): Filter forward primers so that 5' is G or C . Default is False.
+        TM_target (float): Target melting temperature. Default is 70.
+        polymerase (str): Polymerase used for PCR. Default is 'Phusion'.
+        verbose (bool): Print information about primer design. Default is False.
+        GC_max (float): Maximum GC content. Default is 0.8.
+        TM_diff_max (float): Optional: Maximum allowable difference in melting temperature between forward and reverse primers. Default is None.
+        show_gap (bool): Add gap to primer to indicate where codon is. Default is True.
         
     Returns:
         primer_df (pd.DataFrame): Dataframe containing all possible primers."""
@@ -51,6 +54,7 @@ def design_primer(dna_seq,
     mut_codon = primer_design.highest_freq_codon(mut_resn)
 
     #Mutate codon
+    original_seq = deepcopy(dna_seq)
     dna_seq = dna_seq[:codon_start] + mut_codon + dna_seq[codon_end:]
     
     #Create forward primer by slicing max-pad - codon - max-pad
@@ -130,7 +134,7 @@ def design_primer(dna_seq,
     primer_df = primer_df.iloc[(primer_df['TM']-TM_target).abs().argsort()]
 
     if verbose:
-        print(f'{dna_seq=}')
+        print(f'{original_seq=}')
         print(f'{wt_resn=}, {mut_resi=}, {mut_resn=}')
         print(f'{wt_codon=}')
         print(f'{mut_codon=}')
