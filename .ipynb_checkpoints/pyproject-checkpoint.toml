@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "primer_design"
+version = "0.0.1"
+authors = [
+  { name="Azam Hussain", email="azamh@umich.edu" }
+  { name='Chang-Hwa Chiang", email="cdchiang@umich.edu"}
+]
+description = "Utilities for designing primers for mutagenesis"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+   'biopython',
+   'pandas',
+   'openpyxl',
+   'itables',
+]
+
