@@ -48,7 +48,13 @@ def design_primer(dna_seq,
     #Find dna codon in sequence
     codon_start, codon_end = (mut_resi - 1) * 3, (mut_resi - 1) * 3 + 3
     wt_codon = dna_seq[codon_start:codon_end]
-    assert primer_design.codon_table[wt_codon] == wt_resn, 'ERROR: Codon at residue position does not translate to wildtype residue!'
+    if not primer_design.codon_table[wt_codon] == wt_resn:
+        print(f'{mut_resi=}')
+        print(f'{dna_seq=}')
+        print(f'{wt_codon=}')
+        print(f'{wt_resn=}')
+        print(f'{primer_design.codon_table[wt_codon]=}')
+        raise ValueError('ERROR: Codon at residue position does not translate to wildtype residue!')
 
     #Get codon for mutation
     mut_codon = primer_design.highest_freq_codon(mut_resn)
