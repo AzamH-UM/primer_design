@@ -281,6 +281,7 @@ def insertion(
     polymerase="Phusion",
     primer_conc=500,
     verbose=False,
+    show_gap=True,
 ):
     """Design forward and reverse primer for insertion.
 
@@ -298,6 +299,7 @@ def insertion(
         polymerase (str): Polymerase to use for TM calculation.
         primer_conc (float): Primer concentration in nM.
         verbose (bool): Whether to print primer design information.
+        show_gap (bool): Whether to show gap in primer.
 
     """
 
@@ -358,6 +360,12 @@ def insertion(
         reverse_ends_gc = reverse_primer_candidate[-1] in ["G", "C"]
         forward_starts_gc = forward_primer_candidate[0] in ["G", "C"]
         reverse_starts_gc = reverse_primer_candidate[0] in ["G", "C"]
+
+        # Add gap to forward primer
+        if show_gap:
+            forward_primer_candidate = (
+                forward_primer_candidate[0:3] + "-" + forward_primer_candidate[3:]
+            )
 
         # Add to dataframe
         primer_df.at[forward_name, "Sequence"] = forward_primer_candidate
