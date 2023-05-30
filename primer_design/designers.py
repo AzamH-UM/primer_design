@@ -237,7 +237,6 @@ def sdm_multi(
     )
 
     # Recompute TM
-    primer_df["GC"] = ""
 
     for index, row in primer_df.iterrows():
         five_prime_len = int(index.split("-")[0])
@@ -259,11 +258,11 @@ def sdm_multi(
         tm_reverse = primer_design.calculate_tm_multi_sdm_agilent(
             reverse_primer, original_reverse
         )
-        primer_df.at[index, "TM"] = tm
+        primer_df.at[index, "Forward TM"] = tm
         primer_df.at[index, "Reverse TM"] = tm_reverse
 
     # Sort by closest TM to target
-    primer_df = primer_df.iloc[(primer_df["TM"] - TM_target).abs().argsort()]
+    primer_df = primer_df.iloc[(primer_df["Forward TM"] - TM_target).abs().argsort()]
 
     return primer_df
 
