@@ -190,6 +190,7 @@ def sdm_multi(
     min_pad=11,
     TM_target=80,
     GC_min=0.4,
+    GC_max=1.0,
     GC_3prime=True,
     GC_5prime=False,
     show_gap=True,
@@ -206,6 +207,7 @@ def sdm_multi(
         min_pad (int): Minimum number of nucleotides to pad the codon with.
         TM_target (float): Target melting temperature.
         GC_min (float): Minimum GC content.
+        GC_max (float): Maximum GC content.
         GC_3prime (bool): Whether to filter primers by 3' GC content.
         GC_5prime (bool): Whether to filter primers by 5' GC content.
         show_gap (bool): Whether to show gap in primer.
