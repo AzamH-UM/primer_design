@@ -267,6 +267,292 @@ def sdm_multi(
     return primer_df
 
 
+def ssm_single(
+    dna_seq,
+    wt_resn,
+    mut_resi,
+    max_pad=20,
+    min_pad=10,
+    primer_conc=500,
+    TM_target=70,
+    GC_min=0.0,
+    GC_max=0.8,
+    GC_3prime=True,
+    GC_5prime=False,
+    polymerase="Phusion",
+    TM_diff_max=None,
+    show_gap=True,
+    verbose=False,
+):
+    """Generate single-site saturation mutagenesis single primer.
+
+    Args:
+        dna_seq (str): DNA sequence to mutate.
+        wt_resn (str): Wildtype residue.
+        mut_resi (int): Residue position to mutate.
+        max_pad (int): Maximum number of nucleotides to pad the codon with.
+        min_pad (int): Minimum number of nucleotides to pad the codon with.
+        primer_conc (int): Primer concentration in nM.
+        TM_target (float): Target melting temperature.
+        GC_min (float): Minimum GC content.
+        GC_max (float): Maximum GC content.
+        GC_3prime (bool): Whether to filter primers by 3' GC content.
+        GC_5prime (bool): Whether to filter primers by 5' GC content.
+        polymerase (str): Polymerase to use for TM calculation.
+        TM_diff_max (float): Maximum difference in TM between forward and reverse primers.
+        show_gap (bool): Whether to show gap in primer.
+        verbose (bool): Whether to print primer design information.
+
+    """
+
+    # Generate primers with sdm
+    primer_df = sdm(
+        dna_seq=dna_seq,
+        wt_resn=wt_resn,
+        mut_resi=mut_resi,
+        mut_resn=wt_resn,
+        max_pad=max_pad,
+        min_pad=min_pad,
+        TM_target=TM_target,
+        GC_min=GC_min,
+        GC_max=GC_max,
+        GC_3prime=GC_3prime,
+        GC_5prime=GC_5prime,
+        show_gap=show_gap,
+        verbose=verbose,
+    )
+
+    # Swap out wt codon for NNS codon
+    mut_codon = "NNS"
+
+    for index, row in primer_df.iterrows():
+        five_prime_len = int(index.split("-")[0])
+        three_prime_len = int(index.split("-")[-1])
+        if show_gap:
+            five_prime_len += 1
+            three_prime_len += 1
+        forward_primer = row["Forward"]
+        reverse_primer = row["Reverse"]
+        new_forward = (
+            forward_primer[0:five_prime_len]
+            + mut_codon
+            + forward_primer[-three_prime_len:]
+        )
+        primer_df.at[index, "Forward"] = new_forward
+
+    # Drop reverse primers
+    primer_df = primer_df.drop(columns=["Reverse", "Reverse TM"])
+
+    return primer_df
+
+
+def ssm_double(
+    dna_seq,
+    wt_resn,
+    mut_resi,
+    max_len=30,
+    min_len=10,
+    TM_target=64,
+    TM_range=2,
+    GC_min=0.0,
+    GC_max=1.0,
+    GC_end=True,
+    polymerase="Phusion",
+    primer_conc=500,
+    verbose=False,
+):
+    """Design forward and reverse primer for site-saturation mutagenesis
+
+    Args:
+        dna_seq (str): DNA sequence to mutate.
+        wt_resn (str): Wildtype residue.
+        mut_resi (int): Residue position to mutate.
+        max_len (int): Maximum length of primer.
+        min_len (int): Minimum length of primer.
+        TM_target (float): Target melting temperature.
+        GC_min (float): Minimum GC content.
+        GC_max (float): Maximum GC content.
+        GC_end (bool): Whether to force G/C at end
+        polymerase (str): Polymerase to use for TM calculation.
+        primer_conc (int): Primer concentration in nM.
+        verbose (bool): Whether to print primer design information.
+
+    """
+
+    primer_conc = primer_conc / 1e9  # Convert to M
+
+    # Create dataframe to store primers
+    columns = [
+        "Sequence",
+        "Length",
+        "GC Content",
+        "TM",
+    ]
+    filter_columns = [
+        "GC end",
+        "Length",
+        "GC within range",
+        "TM within range",
+    ]
+    for_primer_df = pd.DataFrame(columns=columns + filter_columns)
+    rev_primer_df = pd.DataFrame(columns=columns + filter_columns)
+
+    # Get wildtype codon
+    wt_codon = dna_seq[3 * (mut_resi - 1) : 3 * mut_resi]
+
+    # Get degenerate codon
+    degenerate_codon = "NNK"
+
+    # Create forward primer
+    forward_start = 3 * mut_resi
+    forward_primer = wt_codon + dna_seq[forward_start : forward_start + (max_len - 3)]
+
+    # Create reverse primer
+    reverse_primer = dna_seq[forward_start - (max_len - 3) : forward_start]
+    reverse_primer = "".join(str(Seq(reverse_primer).reverse_complement()))
+
+    # Loop over possible primers
+    for i_slice in range((max_len - min_len - 3)):
+        forward_primer_candidate = forward_primer[0 : len(forward_primer) - i_slice]
+        reverse_primer_candidate = reverse_primer[i_slice:]
+
+        # Compute TM
+        tm = primer_design.calculate_tm_nearest_neighbor(
+            forward_primer_candidate, primer_conc, polymerase
+        )
+        tm_rev = primer_design.calculate_tm_nearest_neighbor(
+            reverse_primer_candidate, primer_conc, polymerase
+        )
+
+        gc = primer_design.gc_content(forward_primer_candidate)
+        gc_rev = primer_design.gc_content(reverse_primer_candidate)
+
+        # Check if TM is within range
+        tm_in_range = False
+        rev_tm_in_range = False
+        if TM_target - TM_range <= tm <= TM_target + TM_range:
+            tm_in_range = True
+        if TM_target - TM_range <= tm_rev <= TM_target + TM_range:
+            rev_tm_in_range = True
+
+        # Check if GC is within range
+        gc_in_range = False
+        rev_gc_in_range = False
+        if GC_min <= gc <= GC_max:
+            gc_in_range = True
+        if GC_min <= gc_rev <= GC_max:
+            rev_gc_in_range = True
+
+        # Check that forward ends with G or C and reverse starts with G or C
+        gc_end = False
+        gc_rev_end = False
+        if forward_primer_candidate[-1] == "G" or forward_primer_candidate[-1] == "C":
+            gc_end = True
+        if reverse_primer_candidate[0] == "G" or reverse_primer_candidate[0] == "C":
+            gc_rev_end = True
+
+        # Add degenerate codon
+        forward_primer_candidate = degenerate_codon + forward_primer_candidate[3:]
+
+        # Add to dataframe
+        for_primer_df.at[i_slice, "Sequence"] = forward_primer_candidate
+        for_primer_df.at[i_slice, "Length"] = len(forward_primer_candidate)
+        for_primer_df.at[i_slice, "GC Content"] = gc
+        for_primer_df.at[i_slice, "TM"] = tm
+        for_primer_df.at[i_slice, "GC end"] = gc_end
+        for_primer_df.at[i_slice, "GC within range"] = gc_in_range
+        for_primer_df.at[i_slice, "TM within range"] = tm_in_range
+
+        rev_primer_df.at[i_slice, "Sequence"] = reverse_primer_candidate
+        rev_primer_df.at[i_slice, "Length"] = len(reverse_primer_candidate)
+        rev_primer_df.at[i_slice, "GC Content"] = gc_rev
+        rev_primer_df.at[i_slice, "TM"] = tm_rev
+        rev_primer_df.at[i_slice, "GC end"] = gc_rev_end
+        rev_primer_df.at[i_slice, "GC within range"] = rev_gc_in_range
+        rev_primer_df.at[i_slice, "TM within range"] = rev_tm_in_range
+
+    # Filter primers
+    for_primer_df = for_primer_df[
+        (for_primer_df["GC end"] == GC_end)
+        & (for_primer_df["GC within range"] == True)
+        & (for_primer_df["TM within range"] == True)
+    ]
+
+    rev_primer_df = rev_primer_df[
+        (rev_primer_df["GC end"] == GC_end)
+        & (rev_primer_df["GC within range"] == True)
+        & (rev_primer_df["TM within range"] == True)
+    ]
+
+    # Sort by closest to target TM
+    for_primer_df = for_primer_df.sort_values(
+        by=["TM"], key=lambda x: abs(x - TM_target), ascending=True
+    )
+    rev_primer_df = rev_primer_df.sort_values(
+        by=["TM"], key=lambda x: abs(x - TM_target), ascending=True
+    )
+
+    # Remove filter columns
+    for_primer_df = for_primer_df[columns]
+    rev_primer_df = rev_primer_df[columns]
+
+    return for_primer_df, rev_primer_df
+
+
+# Design primers for a range of residues
+def ssm_multi(
+    dna_seq,
+    residues,
+    ssm_kwargs,
+):
+    """Design primers for a range of residues
+
+    Args:
+        dna_seq (str): DNA sequence
+        residues (list): List of residues to mutate
+        ssm_kwargs (dict): Keyword arguments for ssm_double
+
+    Returns:
+        primers (pd.DataFrame): List of primers
+
+    """
+
+    primers = []
+
+    # Translate DNA sequence
+    aa_seq = Seq(dna_seq).translate()
+
+    # Iterate over residues
+    for resi in residues:
+        wt_resn = aa_seq[resi - 1]
+
+        # Design primers
+        for_primers, rev_primers = primer_design.ssm_double(
+            dna_seq=dna_seq, wt_resn=wt_resn, mut_resi=resi, **ssm_kwargs
+        )
+
+        # Select first forward primer and reverse primer
+        for_primer = None
+        rev_primer = None
+        if not for_primers.empty:
+            for_primer = for_primers.iloc[0]["Sequence"]
+        if not rev_primers.empty:
+            rev_primer = rev_primers.iloc[0]["Sequence"]
+
+        # Convert primers to strings
+        for_primer = str(for_primer)
+        rev_primer = str(rev_primer)
+
+        # Add to list
+        primers.append((for_primer, rev_primer))
+
+    # Convert to dataframe
+    primers = pd.DataFrame(primers, columns=["forward", "reverse"], index=residues)
+    primers.index.name = "residue"
+
+    return primers
+
+
 def insertion(
     dna_seq,
     ins_resi,

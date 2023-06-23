@@ -11,4 +11,11 @@ from primer_design.tm_calculator import (
 )
 
 # Load site-directed mutagenesis package
-from primer_design.designers import sdm, sdm_multi, insertion
+from primer_design.designers import (
+    sdm,
+    sdm_multi,
+    insertion,
+    ssm_single,
+    ssm_double,
+    ssm_multi,
+)
