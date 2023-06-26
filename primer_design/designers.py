@@ -404,10 +404,9 @@ def ssm_double(
 
     # Create forward primer
     forward_start = 3 * mut_resi
-    forward_primer = (
-        wt_codon
-        + dna_seq[forward_start : min(forward_start + (max_len - 3), len(dna_seq))]
-    )
+    forward_primer = dna_seq[
+        forward_start : min(forward_start + (max_len - 3), len(dna_seq))
+    ]
 
     # Create reverse primer
     reverse_primer = dna_seq[
@@ -456,7 +455,7 @@ def ssm_double(
             gc_rev_end = True
 
         # Add degenerate codon
-        forward_primer_candidate = degenerate_codon + forward_primer_candidate[3:]
+        forward_primer_candidate = degenerate_codon + forward_primer_candidate
 
         # Add to dataframe
         for_primer_df.at[i_slice, "Sequence"] = forward_primer_candidate
