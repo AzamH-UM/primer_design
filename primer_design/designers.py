@@ -359,7 +359,6 @@ def ssm_double(
     GC_end=True,
     polymerase="Phusion",
     primer_conc=500,
-    verbose=False,
 ):
     """Design forward and reverse primer for site-saturation mutagenesis
 
@@ -405,16 +404,21 @@ def ssm_double(
 
     # Create forward primer
     forward_start = 3 * mut_resi
-    forward_primer = wt_codon + dna_seq[forward_start : forward_start + (max_len - 3)]
+    forward_primer = (
+        wt_codon
+        + dna_seq[forward_start : min(forward_start + (max_len - 3), len(dna_seq))]
+    )
 
     # Create reverse primer
-    reverse_primer = dna_seq[forward_start - (max_len - 3) : forward_start]
+    reverse_primer = dna_seq[
+        max(forward_start - 3 - (max_len - 3), 0) : forward_start - 3
+    ]
     reverse_primer = "".join(str(Seq(reverse_primer).reverse_complement()))
 
     # Loop over possible primers
     for i_slice in range((max_len - min_len - 3)):
         forward_primer_candidate = forward_primer[0 : len(forward_primer) - i_slice]
-        reverse_primer_candidate = reverse_primer[i_slice:]
+        reverse_primer_candidate = reverse_primer[0 : len(reverse_primer) - i_slice]
 
         # Compute TM
         tm = primer_design.calculate_tm_nearest_neighbor(
@@ -443,12 +447,12 @@ def ssm_double(
         if GC_min <= gc_rev <= GC_max:
             rev_gc_in_range = True
 
-        # Check that forward ends with G or C and reverse starts with G or C
+        # Check that forward and reverse primers end in G/C
         gc_end = False
         gc_rev_end = False
         if forward_primer_candidate[-1] == "G" or forward_primer_candidate[-1] == "C":
             gc_end = True
-        if reverse_primer_candidate[0] == "G" or reverse_primer_candidate[0] == "C":
+        if reverse_primer_candidate[-1] == "G" or reverse_primer_candidate[-1] == "C":
             gc_rev_end = True
 
         # Add degenerate codon
