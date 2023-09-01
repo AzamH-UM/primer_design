@@ -537,20 +537,24 @@ def ssm_multi(
         # Select first forward primer and reverse primer
         for_primer = None
         rev_primer = None
+        for_TM = None
+        rev_TM = None
         if not for_primers.empty:
             for_primer = for_primers.iloc[0]["Sequence"]
+            for_TM = for_primers.iloc[0]["TM"]
         if not rev_primers.empty:
             rev_primer = rev_primers.iloc[0]["Sequence"]
+            rev_TM = rev_primers.iloc[0]["TM"]
 
         # Convert primers to strings
         for_primer = str(for_primer)
         rev_primer = str(rev_primer)
 
         # Add to list
-        primers.append((for_primer, rev_primer))
+        primers.append((for_primer, rev_primer, for_TM, rev_TM))
 
     # Convert to dataframe
-    primers = pd.DataFrame(primers, columns=["forward", "reverse"], index=residues)
+    primers = pd.DataFrame(primers, columns=["forward", "reverse", "for_tm", "rev_tm"], index=residues)
     primers.index.name = "residue"
 
     return primers
